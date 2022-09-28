@@ -1,4 +1,4 @@
-module github.com/aserto-dev/aserto-certs/magefiles
+module github.com/aserto-dev/certs/magefiles
 
 go 1.17
 

@@ -1,4 +1,4 @@
-module github.com/aserto-dev/aserto-certs
+module github.com/aserto-dev/certs
 
 go 1.17
 
