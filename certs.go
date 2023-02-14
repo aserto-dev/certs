@@ -102,7 +102,17 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 		return errors.Wrap(err, "failed to encode key")
 	}
 
-	c.logger.Info().Str("common-name", genConfig.CommonName).Msg("generating certificate and key")
+	dnsNames := []string{"localhost"}
+	hostname, err := os.Hostname()
+	if err == nil {
+		// If there's a hostname for the local machine, add it to the cert's DNS names.
+		dnsNames = append(dnsNames, hostname)
+	}
+
+	c.logger.Info().
+		Str("common-name", genConfig.CommonName).
+		Strs("dns-names", dnsNames).
+		Msg("generating certificate and key")
 
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
@@ -115,8 +125,8 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 			PostalCode:    []string{"-"},
 			CommonName:    genConfig.CommonName,
 		},
-		IPAddresses:  []net.IP{net.IPv4(0, 0, 0, 0), net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		DNSNames:     dnsNames,
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(1, 0, 0),
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
