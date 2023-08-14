@@ -1,6 +1,6 @@
 module github.com/aserto-dev/certs
 
-go 1.17
+go 1.19
 
 require (
 	github.com/magefile/mage v1.13.0
