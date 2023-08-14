@@ -15,12 +15,12 @@ on:
       - release-*
 env:
   PRE_RELEASE: ${{ github.ref == 'refs/heads/main' && 'development' || '' }}
-  GO_VERSION: "1.17"
+  GO_VERSION: "1.20"
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    steps:           
+    steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -36,7 +36,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Install Tools
-        run: |         
+        run: |
           go run mage.go deps
       - name: Lint
         run: |

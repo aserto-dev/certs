@@ -17,12 +17,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Generator generates certs without any external dependencies
+// Generator generates certs without any external dependencies.
 type Generator struct {
 	logger *zerolog.Logger
 }
 
-// CertGenConfig contains details about how cert generation should happen
+// CertGenConfig contains details about how cert generation should happen.
 type CertGenConfig struct {
 	CommonName       string
 	CertKeyPath      string
@@ -31,7 +31,7 @@ type CertGenConfig struct {
 	DefaultTLSGenDir string
 }
 
-// NewGenerator creates a new cert generator
+// NewGenerator creates a new cert generator.
 func NewGenerator(logger *zerolog.Logger) *Generator {
 	log := logger.With().Str("component", "cert-generator").Logger()
 	return &Generator{
