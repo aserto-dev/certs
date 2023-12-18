@@ -29,6 +29,7 @@ type CertGenConfig struct {
 	CertPath         string
 	CACertPath       string
 	DefaultTLSGenDir string
+	DNSNames         []string
 }
 
 // NewGenerator creates a new cert generator.
@@ -102,12 +103,7 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 		return errors.Wrap(err, "failed to encode key")
 	}
 
-	dnsNames := []string{"localhost"}
-	hostname, err := os.Hostname()
-	if err == nil {
-		// If there's a hostname for the local machine, add it to the cert's DNS names.
-		dnsNames = append(dnsNames, hostname)
-	}
+	dnsNames := getDNSNames(genConfig.DNSNames)
 
 	c.logger.Info().
 		Str("common-name", genConfig.CommonName).
@@ -223,6 +219,22 @@ func writeFile(file string, contents []byte) error {
 	}
 
 	return err
+}
+
+func getDNSNames(setNames []string) []string {
+	// if DNSNames specified use only the specified DNS Names list
+	if len(setNames) > 0 {
+		return setNames
+	}
+
+	dnsNames := []string{"localhost"}
+	hostname, err := os.Hostname()
+	if err == nil {
+		// If there's a hostname for the local machine, add it to the cert's DNS names.
+		dnsNames = append(dnsNames, hostname)
+	}
+
+	return dnsNames
 }
 
 func (c *Generator) checkDir(genConfig *CertGenConfig) error {
