@@ -121,7 +121,7 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 			PostalCode:    []string{"-"},
 			CommonName:    genConfig.CommonName,
 		},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv4(0, 0, 0, 0), net.IPv6loopback},
 		DNSNames:     dnsNames,
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(1, 0, 0),
