@@ -71,9 +71,9 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(1, 0, 0),
 		IsCA:                  true,
+		BasicConstraintsValid: true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
 	}
 
 	caPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
