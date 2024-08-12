@@ -42,6 +42,7 @@ func NewGenerator(logger *zerolog.Logger) *Generator {
 
 // MakeDevCert creates a development certificate request and private key.
 // It persists it in the work dir and returns the CSR.
+// nolint: funlen
 func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 	c.logger.Info().
 		Str("common-name", genConfig.CommonName).
@@ -57,8 +58,14 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 
 	c.logger.Info().Str("file", genConfig.CACertPath).Str("common-name", genConfig.CommonName).Msg("generating ca certificate")
 
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate serial number")
+	}
+
 	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization:  []string{"Aserto, Inc."},
 			Country:       []string{"US"},
@@ -72,8 +79,8 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 		NotAfter:              time.Now().AddDate(1, 0, 0),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
 
 	caPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
@@ -103,12 +110,16 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 		return errors.Wrap(err, "failed to encode key")
 	}
 
-	dnsNames := getDNSNames(genConfig.DNSNames)
+	ipAddresses := []net.IP{net.IPv4(127, 0, 0, 1), net.IPv4(0, 0, 0, 0), net.IPv6loopback}
+	dnsNames := []string{}
 
-	c.logger.Info().
-		Str("common-name", genConfig.CommonName).
-		Strs("dns-names", dnsNames).
-		Msg("generating certificate and key")
+	for _, h := range getDNSNames(genConfig.DNSNames) {
+		if ip := net.ParseIP(h); ip != nil {
+			ipAddresses = append(ipAddresses, ip)
+		} else {
+			dnsNames = append(dnsNames, h)
+		}
+	}
 
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
@@ -121,8 +132,8 @@ func (c *Generator) MakeDevCert(genConfig *CertGenConfig) error {
 			PostalCode:    []string{"-"},
 			CommonName:    genConfig.CommonName,
 		},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv4(0, 0, 0, 0), net.IPv6loopback},
 		DNSNames:     dnsNames,
+		IPAddresses:  ipAddresses,
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(1, 0, 0),
 		SubjectKeyId: []byte{1, 2, 3, 4, 6},
@@ -238,7 +249,6 @@ func getDNSNames(setNames []string) []string {
 }
 
 func (c *Generator) checkDir(genConfig *CertGenConfig) error {
-
 	certDir := filepath.Dir(genConfig.CertPath)
 	keyDir := filepath.Dir(genConfig.CertKeyPath)
 	caCertDir := filepath.Dir(genConfig.CACertPath)
@@ -248,7 +258,7 @@ func (c *Generator) checkDir(genConfig *CertGenConfig) error {
 	}
 
 	if certDir == genConfig.DefaultTLSGenDir {
-		err := os.MkdirAll(certDir, 0777)
+		err := os.MkdirAll(certDir, 0o777)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create directory '%s'", genConfig.DefaultTLSGenDir)
 		}
