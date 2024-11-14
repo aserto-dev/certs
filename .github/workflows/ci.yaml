@@ -1,3 +1,4 @@
+---
 name: ci
 
 on:
@@ -14,10 +15,8 @@ on:
       - main
       - release-*
 env:
-  PRE_RELEASE: ${{ github.ref == 'refs/heads/main' && 'development' || '' }}
-  GO_VERSION: "1.22"
-  GO_RELEASER_VERSION: "v1.24.0"
-  GO_LANGCI_LINT_VERSION: "v1.56.2"
+  GO_VERSION: "1.23"
+  GO_LANGCI_LINT_VERSION: "v1.61.0"
   GO_TESTSUM_VERSION: "1.11.0"
 
 jobs:
@@ -46,7 +45,7 @@ jobs:
         name: Test
         run: |
           gotestsum --format short-verbose -- -count=1 -v -timeout=240s -coverprofile=cover.out -coverpkg=./... ./...
-      - 
+      -
         name: Upload code coverage
         uses: shogo82148/actions-goveralls@v1
         continue-on-error: true

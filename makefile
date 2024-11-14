@@ -15,12 +15,11 @@ EXT_DIR            := ./.ext
 EXT_BIN_DIR        := ${EXT_DIR}/bin
 EXT_TMP_DIR        := ${EXT_DIR}/tmp
 
-VAULT_VER	         := 1.8.12
-SVU_VER 	         := 1.12.0
+VAULT_VER          := 1.8.12
+SVU_VER            := 1.12.0
 GOTESTSUM_VER      := 1.11.0
-GOLANGCI-LINT_VER  := 1.56.2
-GORELEASER_VER     := 1.24.0
-WIRE_VER	         := 0.6.0
+GOLANGCI-LINT_VER  := 1.61.0
+WIRE_VER           := 0.6.0
 BUF_VER            := 1.34.0
 
 RELEASE_TAG        := $$(svu)
@@ -28,33 +27,8 @@ RELEASE_TAG        := $$(svu)
 .DEFAULT_GOAL      := build
 
 .PHONY: deps
-deps: info install-vault install-svu install-goreleaser install-golangci-lint install-gotestsum
+deps: info install-vault install-svu install-golangci-lint install-gotestsum
 	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-
-.PHONY: build
-build:
-	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-	@${EXT_BIN_DIR}/goreleaser build --clean --snapshot --single-target
-
-.PHONY: dev-release
-dev-release: 
-	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-	@${EXT_BIN_DIR}/goreleaser release --clean --snapshot
-
-.PHONY: release
-release:
-	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-	@${EXT_BIN_DIR}/goreleaser release --clean
-
-.PHONY: snapshot
-snapshot:
-	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-	@${EXT_BIN_DIR}/goreleaser release --clean --snapshot
-
-.PHONY: generate
-generate:
-	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-	@GOBIN=${PWD}/${EXT_BIN_DIR} go generate ./...
 
 .PHONY: lint
 lint:
@@ -65,11 +39,6 @@ lint:
 test:
 	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
 	@${EXT_BIN_DIR}/gotestsum --format short-verbose -- -count=1 -parallel=1 -v -coverprofile=cover.out -coverpkg=./... ./...;
-
-.PHONY: write-version
-write-version:
-	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-	@git describe --tags > ./VERSION.txt
 
 .PHONY: vault-login
 vault-login:
@@ -92,7 +61,7 @@ install-vault: ${EXT_BIN_DIR} ${EXT_TMP_DIR}
 	@curl -s -o ${EXT_TMP_DIR}/vault.zip https://releases.hashicorp.com/vault/${VAULT_VER}/vault_${VAULT_VER}_${GOOS}_${GOARCH}.zip
 	@unzip -o ${EXT_TMP_DIR}/vault.zip vault -d ${EXT_BIN_DIR}/  &> /dev/null
 	@chmod +x ${EXT_BIN_DIR}/vault
-	@${EXT_BIN_DIR}/vault --version 
+	@${EXT_BIN_DIR}/vault --version
 
 
 .PHONY: install-svu
@@ -129,15 +98,6 @@ install-golangci-lint: ${EXT_TMP_DIR} ${EXT_BIN_DIR}
 	@mv ${EXT_TMP_DIR}/golangci-lint ${EXT_BIN_DIR}/golangci-lint
 	@chmod +x ${EXT_BIN_DIR}/golangci-lint
 	@${EXT_BIN_DIR}/golangci-lint --version
-
-.PHONY: install-goreleaser
-install-goreleaser: ${EXT_TMP_DIR} ${EXT_BIN_DIR}
-	@echo -e "$(ATTN_COLOR)==> $@ $(NO_COLOR)"
-	@gh release download v${GORELEASER_VER} --repo https://github.com/goreleaser/goreleaser --pattern "goreleaser_$$(uname -s)_$$(uname -m).tar.gz" --output "${EXT_TMP_DIR}/goreleaser.tar.gz" --clobber
-	@tar -xvf ${EXT_TMP_DIR}/goreleaser.tar.gz --directory ${EXT_BIN_DIR} goreleaser &> /dev/null
-	@chmod +x ${EXT_BIN_DIR}/goreleaser
-	@${EXT_BIN_DIR}/goreleaser --version
-
 
 .PHONY: clean
 clean:
