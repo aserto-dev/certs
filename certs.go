@@ -25,8 +25,11 @@ type Generator struct {
 // CertGenConfig contains details about how cert generation should happen.
 type CertGenConfig struct {
 	CommonName       string
-	DNSNames         []string
+	CertKeyPath      string
+	CertPath         string
+	CertCAPath       string
 	DefaultTLSGenDir string
+	DNSNames         []string
 }
 
 // NewGenerator creates a new cert generator.
@@ -40,17 +43,12 @@ func NewGenerator(logger *zerolog.Logger) *Generator {
 
 // MakeDevCert creates a development certificate request and private key.
 // It persists it in the work dir and returns the CSR.
-func (c *Generator) MakeDevCert(cfg *CertGenConfig, target *CertFiles) error {
-	if target.NoTLS() {
-		c.logger.Warn().Msg("cert path not set, certificate generation SKIPPED")
-		return nil
-	}
+func (c *Generator) MakeDevCert(cfg *CertGenConfig) error {
+	c.logger.Info().Str("common-name", cfg.CommonName).Str("cert-path", cfg.CertPath).Msg("generating certificate")
+	c.logger.Info().Str("common-name", cfg.CommonName).Str("key-path", cfg.CertKeyPath).Msg("generating certificate")
+	c.logger.Info().Str("common-name", cfg.CommonName).Str("ca-cert-path", cfg.CertCAPath).Msg("generating certificate")
 
-	c.logger.Info().Str("common-name", cfg.CommonName).Str("cert-path", target.Cert).Msg("generating certificate")
-	c.logger.Info().Str("common-name", cfg.CommonName).Str("key-path", target.Key).Msg("generating certificate")
-	c.logger.Info().Str("common-name", cfg.CommonName).Str("ca-cert-path", target.CA).Msg("generating certificate")
-
-	gen, err := newGenerator(c.logger, cfg, target)
+	gen, err := newGenerator(c.logger, cfg)
 	if err != nil {
 		return err
 	}
@@ -60,7 +58,6 @@ func (c *Generator) MakeDevCert(cfg *CertGenConfig, target *CertFiles) error {
 
 type generator struct {
 	cfg    *CertGenConfig
-	target *CertFiles
 	logger *zerolog.Logger
 
 	ca   *x509.Certificate
@@ -74,7 +71,7 @@ const (
 	certDirMode        = 0o777
 )
 
-func newGenerator(logger *zerolog.Logger, cfg *CertGenConfig, target *CertFiles) (*generator, error) {
+func newGenerator(logger *zerolog.Logger, cfg *CertGenConfig) (*generator, error) {
 	caMaxSerialNumber := new(big.Int).Lsh(big.NewInt(1), caSerialNumberBits)
 
 	snCA, err := rand.Int(rand.Reader, caMaxSerialNumber)
@@ -132,7 +129,7 @@ func newGenerator(logger *zerolog.Logger, cfg *CertGenConfig, target *CertFiles)
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}
 
-	return &generator{cfg: cfg, target: target, logger: logger, ca: ca, cert: cert}, nil
+	return &generator{cfg: cfg, logger: logger, ca: ca, cert: cert}, nil
 }
 
 func (g *generator) generate() error {
@@ -140,7 +137,7 @@ func (g *generator) generate() error {
 		return errors.Wrap(err, "directory verification returned an error")
 	}
 
-	g.logger.Debug().Str("file", g.target.CA).Str("common-name", g.cfg.CommonName).Msg("generating ca certificate")
+	g.logger.Debug().Str("file", g.cfg.CertCAPath).Str("common-name", g.cfg.CommonName).Msg("generating ca certificate")
 
 	caPrivKey, err := rsa.GenerateKey(rand.Reader, privateKeyBits)
 	if err != nil {
@@ -163,8 +160,8 @@ func (g *generator) generate() error {
 	}
 
 	g.logger.Info().
-		Str("cert-file", g.target.Cert).
-		Str("key-file", g.target.Key).
+		Str("cert-file", g.cfg.CertPath).
+		Str("key-file", g.cfg.CertKeyPath).
 		Str("common-name", g.cfg.CommonName).
 		Msg("signing certificate")
 
@@ -172,7 +169,7 @@ func (g *generator) generate() error {
 		return err
 	}
 
-	if err := writeFile(g.target.CA, caPEM.Bytes()); err != nil {
+	if err := writeFile(g.cfg.CertCAPath, caPEM.Bytes()); err != nil {
 		return errors.Wrap(err, "failed to write ca cert")
 	}
 
@@ -181,8 +178,8 @@ func (g *generator) generate() error {
 
 func (g *generator) signCert(certPrivKey, caPrivKey *rsa.PrivateKey) error {
 	g.logger.Info().
-		Str("cert-file", g.target.Cert).
-		Str("key-file", g.target.Key).
+		Str("cert-file", g.cfg.CertPath).
+		Str("key-file", g.cfg.CertKeyPath).
 		Str("common-name", g.cfg.CommonName).
 		Msg("signing certificate")
 
@@ -207,11 +204,11 @@ func (g *generator) signCert(certPrivKey, caPrivKey *rsa.PrivateKey) error {
 		return errors.Wrap(err, "failed to encode key")
 	}
 
-	if err := writeFile(g.target.Key, certPrivKeyPEM.Bytes()); err != nil {
+	if err := writeFile(g.cfg.CertKeyPath, certPrivKeyPEM.Bytes()); err != nil {
 		return errors.Wrap(err, "failed to write key")
 	}
 
-	if err := writeFile(g.target.Cert, certPEM.Bytes()); err != nil {
+	if err := writeFile(g.cfg.CertPath, certPEM.Bytes()); err != nil {
 		return errors.Wrap(err, "failed to write key")
 	}
 
@@ -255,9 +252,9 @@ func getDNSNames(setNames []string) []string {
 }
 
 func (g *generator) checkDir() error {
-	certDir := filepath.Dir(g.target.Cert)
-	keyDir := filepath.Dir(g.target.Key)
-	caCertDir := filepath.Dir(g.target.CA)
+	certDir := filepath.Dir(g.cfg.CertPath)
+	keyDir := filepath.Dir(g.cfg.CertKeyPath)
+	caCertDir := filepath.Dir(g.cfg.CertCAPath)
 
 	if certDir != keyDir || certDir != caCertDir {
 		return errors.New("output directory for all configured certificates and keys must be the same")
