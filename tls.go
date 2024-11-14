@@ -6,8 +6,6 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // CertFiles contains paths to an X509 certificate's key-pair and CA files.
@@ -23,34 +21,6 @@ func (c *CertFiles) IsTLS() bool {
 
 func (c *CertFiles) NoTLS() bool {
 	return !c.IsTLS()
-}
-
-// ServerCredentials returns transport credentials for a GRPC server.
-func (c *CertFiles) ServerCredentials() (credentials.TransportCredentials, error) {
-	if c.NoTLS() {
-		return insecure.NewCredentials(), nil
-	}
-
-	tlsConfig, err := c.ServerConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return credentials.NewTLS(tlsConfig), nil
-}
-
-// ClientCredentials returns transport credentials for a GRPC client.
-func (c *CertFiles) ClientCredentials() (credentials.TransportCredentials, error) {
-	if c.NoTLS() {
-		return insecure.NewCredentials(), nil
-	}
-
-	tlsConfig, err := c.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return credentials.NewTLS(tlsConfig), nil
 }
 
 // ServerConfig returns TLS configuration for a server.
@@ -92,62 +62,4 @@ func (c *CertFiles) ClientConfig() (*tls.Config, error) {
 	conf.RootCAs = certPool
 
 	return conf, nil
-}
-
-// GRPCServerTLSCreds gets TLS credentials for a GRPC server.
-func GRPCServerTLSCreds(config CertFiles) (credentials.TransportCredentials, error) {
-	certificate, err := tls.LoadX509KeyPair(config.Cert, config.Key)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load GRPC certs")
-	}
-
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{certificate},
-		MinVersion:   tls.VersionTLS12,
-	}
-
-	return credentials.NewTLS(tlsConfig), nil
-}
-
-// GatewayAsClientTLSCreds returns transport credentials so an HTTP gateway can connect to the GRPC server.
-func GatewayAsClientTLSCreds(config CertFiles) (credentials.TransportCredentials, error) {
-	certPool := x509.NewCertPool()
-
-	caCertBytes, err := os.ReadFile(config.CA)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read ca cert: %s", config.CA)
-	}
-
-	ok := certPool.AppendCertsFromPEM(caCertBytes)
-	if !ok {
-		return nil, errors.Wrap(err, "failed to append client ca cert: %s")
-	}
-
-	certificate, err := tls.LoadX509KeyPair(config.Cert, config.Key)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not load server key pair")
-	}
-
-	clientCreds := credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{certificate},
-		RootCAs:      certPool,
-		MinVersion:   tls.VersionTLS12,
-	})
-
-	return clientCreds, nil
-}
-
-// GatewayServerTLSConfig returns a TLS config for the gateway server.
-func GatewayServerTLSConfig(config CertFiles) (*tls.Config, error) {
-	certificate, err := tls.LoadX509KeyPair(config.Cert, config.Key)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load gateway certs")
-	}
-
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{certificate},
-		MinVersion:   tls.VersionTLS12,
-	}
-
-	return tlsConfig, nil
 }
