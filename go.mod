@@ -1,12 +1,10 @@
 module github.com/aserto-dev/certs
 
-go 1.22.9
-
-toolchain go1.23.2
+go 1.23.0
 
 require (
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 )
 
 require (

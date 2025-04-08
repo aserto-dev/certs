@@ -17,6 +17,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const fileModeOwnerRW = 0o600
+
 // Generator generates certs without any external dependencies.
 type Generator struct {
 	logger *zerolog.Logger
@@ -169,7 +171,7 @@ func (g *generator) generate() error {
 		return err
 	}
 
-	if err := writeFile(g.cfg.CertCAPath, caPEM.Bytes()); err != nil {
+	if err := os.WriteFile(g.cfg.CertCAPath, caPEM.Bytes(), fileModeOwnerRW); err != nil {
 		return errors.Wrap(err, "failed to write ca cert")
 	}
 
@@ -204,35 +206,15 @@ func (g *generator) signCert(certPrivKey, caPrivKey *rsa.PrivateKey) error {
 		return errors.Wrap(err, "failed to encode key")
 	}
 
-	if err := writeFile(g.cfg.CertKeyPath, certPrivKeyPEM.Bytes()); err != nil {
+	if err := os.WriteFile(g.cfg.CertKeyPath, certPrivKeyPEM.Bytes(), fileModeOwnerRW); err != nil {
 		return errors.Wrap(err, "failed to write key")
 	}
 
-	if err := writeFile(g.cfg.CertPath, certPEM.Bytes()); err != nil {
+	if err := os.WriteFile(g.cfg.CertPath, certPEM.Bytes(), fileModeOwnerRW); err != nil {
 		return errors.Wrap(err, "failed to write key")
 	}
 
 	return nil
-}
-
-func writeFile(file string, contents []byte) error {
-	fo, err := os.Create(file)
-	if err != nil {
-		return errors.Wrapf(err, "failed to open cert file '%s' for writing", file)
-	}
-
-	defer func() {
-		err = fo.Close()
-		if err != nil {
-			err = errors.Wrapf(err, "failed to close cert file '%s'", file)
-		}
-	}()
-
-	if _, err = fo.Write(contents); err != nil {
-		return errors.Wrapf(err, "failed to write cert contents to file '%s'", file)
-	}
-
-	return err
 }
 
 func getDNSNames(setNames []string) []string {
